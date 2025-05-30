@@ -25,8 +25,6 @@ from users.serializers import (
 )
 
 
-from rest_framework.pagination import PageNumberPagination
-
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     permission_classes = [permissions.AllowAny]
@@ -37,7 +35,6 @@ class UserViewSet(viewsets.ModelViewSet):
         elif self.action in ['retrieve', 'me', 'list']:
             return UserDetailSerializer
         return UserSerializer
-
 
     def get_serializer_context(self):
         return {'request': self.request}
@@ -70,12 +67,11 @@ class UserViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated], url_path='set_password')
     def set_password(self, request):
-        serializer = SetPasswordSerializer(data=request.data, context=self.get_serializer_context())
+        serializer = SetPasswordSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         request.user.set_password(serializer.validated_data['new_password'])
         request.user.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
-
 
 class SubscriptionView(generics.ListAPIView):
     serializer_class = SubscriptionSerializer
