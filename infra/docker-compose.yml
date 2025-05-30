@@ -1,6 +1,23 @@
-version: '3.3'
 services:
-
+  backend:
+    container_name: foodgram-back
+    build:
+      context: ../backend
+    volumes:
+      - ../backend/:/app/
+      - static_volume:/app/static/
+      - media_volume:/app/media/
+    env_file:
+      - ../.env
+    # depends_on:
+    #   - db
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn foodgram.wsgi:application --bind 0.0.0.0:8000"
+    # кристина подгружает это из config, то есть у нее вместо foodgram.wsgi:application config.wsgi:application
+    ports:
+      - "8000:8000"
   frontend:
     container_name: foodgram-front
     build: ../frontend
@@ -15,3 +32,9 @@ services:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
       - ../frontend/build:/usr/share/nginx/html/
       - ../docs/:/usr/share/nginx/html/api/docs/
+    depends_on:
+      - frontend
+
+volumes:
+  static:
+  media:

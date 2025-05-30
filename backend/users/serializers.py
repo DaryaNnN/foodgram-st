@@ -1,6 +1,9 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-
+from rest_framework import serializers
+from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+from users.models import Subscription
 User = get_user_model()
 
 class UserCreateSerializer(serializers.ModelSerializer):
@@ -18,35 +21,36 @@ class UserCreateSerializer(serializers.ModelSerializer):
         return user
 
 class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ('id', 'username', 'first_name', 'last_name', 'email')
-        read_only_fields = ('id', 'username', 'first_name', 'last_name', 'email')
-
-
-from rest_framework import serializers
-from django.contrib.auth import get_user_model
-from django.contrib.auth.password_validation import validate_password
-from users.models import Subscription
-
-User = get_user_model()
-
-
-class UserSerializer(serializers.ModelSerializer):
-    """Базовый сериализатор для пользователя (без пароля)"""
+    is_subscribed = serializers.SerializerMethodField()
+    avatar = serializers.ImageField(read_only=True)
 
     class Meta:
         model = User
-        fields = ("id", "username", "first_name", "last_name", "email")
+        fields = ("id", "username", "first_name", "last_name", "email", "avatar", "is_subscribed")
+
+    def get_is_subscribed(self, obj):
+        request = self.context.get("request")
+        if not request or request.user.is_anonymous:
+            return False
+        return obj.subscribers.filter(subscriber=request.user).exists()
+
 
 
 
 class UserDetailSerializer(serializers.ModelSerializer):
-    """Сериализатор для детального просмотра пользователя"""
+    is_subscribed = serializers.SerializerMethodField()
+    avatar = serializers.ImageField(read_only=True)
 
     class Meta:
         model = User
-        fields = ("id", "username", "first_name", "last_name", "email", "avatar")
+        fields = ("id", "username", "first_name", "last_name", "email", "avatar", "is_subscribed")
+
+    def get_is_subscribed(self, obj):
+        request = self.context.get("request")
+        if not request or request.user.is_anonymous:
+            return False
+        return obj.subscribers.filter(subscriber=request.user).exists()
+
 
 
 class AvatarSerializer(serializers.ModelSerializer):
@@ -81,3 +85,8 @@ class SubscriptionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Subscription
         fields = ("id", "subscriber", "author")
+
+class UserShortSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ("id", "username", "first_name", "last_name", "email")

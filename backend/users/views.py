@@ -1,25 +1,31 @@
-from rest_framework import viewsets, status, generics, mixins, permissions
-from rest_framework.decorators import action, api_view, permission_classes
-from rest_framework.response import Response
-from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
+from django.shortcuts import get_object_or_404
+from rest_framework import generics
+from rest_framework.decorators import api_view, permission_classes
 
 from .models import Subscription
 from .serializers import (
+    SubscriptionSerializer, UserShortSerializer,
+)
+
+User = get_user_model()
+
+from rest_framework import viewsets, status, permissions
+from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+from users.models import User
+from users.serializers import (
     UserSerializer,
     UserCreateSerializer,
     UserDetailSerializer,
     AvatarSerializer,
     SetPasswordSerializer,
-    SubscriptionSerializer,
 )
-from rest_framework.permissions import IsAuthenticated
-
-User = get_user_model()
 
 
-from rest_framework import status
-from rest_framework.response import Response
+from rest_framework.pagination import PageNumberPagination
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
@@ -28,43 +34,47 @@ class UserViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == 'create':
             return UserCreateSerializer
-        elif self.action in ['retrieve', 'me']:
+        elif self.action in ['retrieve', 'me', 'list']:
             return UserDetailSerializer
         return UserSerializer
+
+
+    def get_serializer_context(self):
+        return {'request': self.request}
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        response_serializer = UserSerializer(user)
+
+        # Используем сериализатор без avatar и is_subscribed
+        response_serializer = UserShortSerializer(user, context=self.get_serializer_context())
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def me(self, request):
-        serializer = self.get_serializer(request.user)
+        serializer = UserDetailSerializer(request.user, context=self.get_serializer_context())
         return Response(serializer.data)
 
     @action(detail=False, methods=['put', 'delete'], permission_classes=[IsAuthenticated], url_path='me/avatar')
     def avatar(self, request):
         if request.method == 'PUT':
-            serializer = AvatarSerializer(request.user, data=request.data)
+            serializer = AvatarSerializer(request.user, data=request.data, context=self.get_serializer_context())
             serializer.is_valid(raise_exception=True)
             serializer.save()
             return Response(serializer.data)
         elif request.method == 'DELETE':
             user = request.user
-            user.avatar.delete()
-            user.save()
+            user.avatar.delete(save=True)
             return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated], url_path='set_password')
     def set_password(self, request):
-        serializer = SetPasswordSerializer(data=request.data, context={'request': request})
+        serializer = SetPasswordSerializer(data=request.data, context=self.get_serializer_context())
         serializer.is_valid(raise_exception=True)
         request.user.set_password(serializer.validated_data['new_password'])
         request.user.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
-
 
 
 class SubscriptionView(generics.ListAPIView):
