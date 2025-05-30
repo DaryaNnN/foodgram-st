@@ -27,6 +27,11 @@ class IngredientDetailView(generics.RetrieveAPIView):
     serializer_class = IngredientSerializer
     permission_classes = [permissions.AllowAny]
 
+class IsAuthorOrReadOnly(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        return obj.author == request.user
 
 class RecipeListCreateView(generics.ListCreateAPIView):
     queryset = Recipe.objects.all()
@@ -73,6 +78,7 @@ class RecipeRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
 
 class RecipeDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Recipe.objects.all()
+    permission_classes = [IsAuthorOrReadOnly]
 
     def get_serializer_class(self):
         if self.request.method in ('PUT', 'PATCH'):
@@ -82,6 +88,7 @@ class RecipeDetailView(generics.RetrieveUpdateDestroyAPIView):
     def patch(self, request, *args, **kwargs):
         partial = True
         instance = self.get_object()
+        self.check_object_permissions(request, instance)
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)

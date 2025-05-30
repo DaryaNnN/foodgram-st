@@ -85,6 +85,17 @@ class RecipeCreateSerializer(serializers.ModelSerializer):
             )
         return recipe
 
+    def validate(self, data):
+        if self.instance and not self.partial and 'ingredients' not in data:
+            raise serializers.ValidationError({
+                'ingredients': 'Это поле обязательно.'
+            })
+        if self.partial and 'ingredients' not in data:
+            raise serializers.ValidationError({
+                'ingredients': 'Это поле обязательно при обновлении.'
+            })
+        return data
+
 
 class RecipeListSerializer(serializers.ModelSerializer):
     author = UserSerializer(read_only=True)
