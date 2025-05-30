@@ -5,7 +5,6 @@ from rest_framework import permissions
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
 from recipes.models import Ingredient, Recipe
 from recipes.serializers import (
     IngredientSerializer,
@@ -48,13 +47,6 @@ class RecipeListCreateView(generics.ListCreateAPIView):
         output_serializer = RecipeListSerializer(recipe, context={'request': request})
         return Response(output_serializer.data, status=status.HTTP_201_CREATED)
 
-
-class RecipeDetailView(generics.RetrieveAPIView):
-    queryset = Recipe.objects.all()
-    serializer_class = RecipeListSerializer
-    permission_classes = [permissions.AllowAny]  # публичный доступ
-
-
 class RecipeGetLinkView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -65,3 +57,35 @@ class RecipeGetLinkView(APIView):
         full_url = request.build_absolute_uri(f'/api/recipes/{recipe.id}/')
 
         return Response({"short-link": full_url}, status=status.HTTP_200_OK)
+
+class RecipeRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Recipe.objects.all()
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_serializer_class(self):
+        if self.request.method in ['PUT', 'PATCH']:
+            return RecipeCreateSerializer
+        return RecipeListSerializer
+
+    def perform_update(self, serializer):
+        # При необходимости проверка прав редактирования (автор/админ)
+        serializer.save()
+
+class RecipeDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Recipe.objects.all()
+
+    def get_serializer_class(self):
+        if self.request.method in ('PUT', 'PATCH'):
+            return RecipeCreateSerializer
+        return RecipeListSerializer
+
+    def patch(self, request, *args, **kwargs):
+        partial = True
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        # после обновления сериализуем уже для чтения
+        read_serializer = RecipeListSerializer(instance, context={'request': request})
+        return Response(read_serializer.data, status=status.HTTP_200_OK)

@@ -1,4 +1,4 @@
-from rest_framework import serializers
+from rest_framework import serializers, generics, permissions
 from users.serializers import Base64ImageField, UserSerializer
 from .models import Recipe, Ingredient, RecipeIngredient
 
@@ -39,6 +39,27 @@ class RecipeCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Recipe
         fields = ('id', 'name', 'text', 'cooking_time', 'image', 'ingredients')
+
+    def update(self, instance, validated_data):
+        ingredients_data = validated_data.pop('ingredients', None)
+
+        # Обновляем простые поля
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        # Обновляем ингредиенты, если передали
+        if ingredients_data is not None:
+            # Удаляем старые
+            instance.recipe_ingredients.all().delete()
+            # Создаем новые
+            for ingredient_data in ingredients_data:
+                RecipeIngredient.objects.create(
+                    recipe=instance,
+                    component=ingredient_data['component'],
+                    amount=ingredient_data['amount']
+                )
+        return instance
 
     def validate_ingredients(self, value):
         if not value:
@@ -92,3 +113,12 @@ class RecipeListSerializer(serializers.ModelSerializer):
         if user.is_anonymous:
             return False
         return obj.in_carts.filter(user=user).exists()
+
+class RecipeRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Recipe.objects.all()
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_serializer_class(self):
+        if self.request.method in ['PUT', 'PATCH']:
+            return RecipeCreateSerializer
+        return RecipeListSerializer
