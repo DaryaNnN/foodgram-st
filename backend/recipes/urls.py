@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import IngredientListView, IngredientDetailView, RecipeListCreateView, RecipeDetailView
+from .views import IngredientListView, IngredientDetailView, RecipeListCreateView, RecipeDetailView, RecipeGetLinkView
 
 urlpatterns = [
     # path('dishes/', views.DishListView.as_view(), name='dish-list'),
@@ -12,5 +12,6 @@ urlpatterns = [
     ),
     path('recipes/', RecipeListCreateView.as_view(), name='recipe-list-create'),
     path('recipes/<int:pk>/', RecipeDetailView.as_view(), name='recipe-detail'),  # GET по id без auth
+    path('recipes/<int:id>/get-link/', RecipeGetLinkView.as_view(), name='recipe-get-link'),
 
 ]

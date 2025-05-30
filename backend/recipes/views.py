@@ -1,6 +1,10 @@
+from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import generics, permissions, status
+from rest_framework import generics
+from rest_framework import permissions
+from rest_framework import status
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from recipes.models import Ingredient, Recipe
 from recipes.serializers import (
@@ -28,8 +32,8 @@ class IngredientDetailView(generics.RetrieveAPIView):
 class RecipeListCreateView(generics.ListCreateAPIView):
     queryset = Recipe.objects.all()
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
-    filter_backends = [DjangoFilterBackend]   # добавляем фильтр
-    filterset_fields = ['author']              # фильтрация по полю author (id пользователя)
+    filter_backends = [DjangoFilterBackend]  # добавляем фильтр
+    filterset_fields = ['author']  # фильтрация по полю author (id пользователя)
 
     def get_serializer_class(self):
         if self.request.method == 'POST':
@@ -49,3 +53,15 @@ class RecipeDetailView(generics.RetrieveAPIView):
     queryset = Recipe.objects.all()
     serializer_class = RecipeListSerializer
     permission_classes = [permissions.AllowAny]  # публичный доступ
+
+
+class RecipeGetLinkView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, id):
+        recipe = get_object_or_404(Recipe, id=id)
+
+        # Получаем полный URL текущего рецепта
+        full_url = request.build_absolute_uri(f'/api/recipes/{recipe.id}/')
+
+        return Response({"short-link": full_url}, status=status.HTTP_200_OK)
