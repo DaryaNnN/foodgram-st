@@ -9,11 +9,12 @@ from users.models import Subscription
 
 User = get_user_model()
 
+
 class Base64ImageField(serializers.ImageField):
     def to_internal_value(self, data):
-        if isinstance(data, str) and data.startswith('data:image'):
-            format, imgstr = data.split(';base64,')
-            ext = format.split('/')[-1]
+        if isinstance(data, str) and data.startswith("data:image"):
+            format, imgstr = data.split(";base64,")
+            ext = format.split("/")[-1]
             img_data = base64.b64decode(imgstr)
             file_name = f"avatar.{ext}"
             data = ContentFile(img_data, name=file_name)
@@ -21,14 +22,16 @@ class Base64ImageField(serializers.ImageField):
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
+    password = serializers.CharField(
+        write_only=True, required=True, style={"input_type": "password"}
+    )
 
     class Meta:
         model = User
-        fields = ('email', 'username', 'first_name', 'last_name', 'password')
+        fields = ("email", "username", "first_name", "last_name", "password")
 
     def create(self, validated_data):
-        password = validated_data.pop('password')
+        password = validated_data.pop("password")
         user = User(**validated_data)
         user.set_password(password)  # Хэшируем пароль
         user.save()
@@ -41,7 +44,15 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ("id", "username", "first_name", "last_name", "email", "avatar", "is_subscribed")
+        fields = (
+            "id",
+            "username",
+            "first_name",
+            "last_name",
+            "email",
+            "avatar",
+            "is_subscribed",
+        )
 
     def get_is_subscribed(self, obj):
         request = self.context.get("request")
@@ -56,7 +67,15 @@ class UserDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ("id", "username", "first_name", "last_name", "email", "avatar", "is_subscribed")
+        fields = (
+            "id",
+            "username",
+            "first_name",
+            "last_name",
+            "email",
+            "avatar",
+            "is_subscribed",
+        )
 
     def get_is_subscribed(self, obj):
         request = self.context.get("request")
@@ -80,10 +99,12 @@ class AvatarSerializer(serializers.ModelSerializer):
 
 class SetPasswordSerializer(serializers.Serializer):
     current_password = serializers.CharField(write_only=True, required=True)
-    new_password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
+    new_password = serializers.CharField(
+        write_only=True, required=True, validators=[validate_password]
+    )
 
     def validate_current_password(self, value):
-        user = self.context['request'].user
+        user = self.context["request"].user
         if not user.check_password(value):
             raise serializers.ValidationError("Неверный текущий пароль")
         return value

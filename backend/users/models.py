@@ -51,4 +51,3 @@ class Subscription(models.Model):
 
     def __str__(self) -> str:
         return f"{self.subscriber} подписан на {self.author}"
-
