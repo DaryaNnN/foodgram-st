@@ -1,15 +1,17 @@
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics
 from rest_framework import permissions
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from recipes.models import Ingredient, Recipe
+from recipes.models import Ingredient, Recipe, ShoppingList, RecipeIngredient, Favorite
 from recipes.serializers import (
     IngredientSerializer,
     RecipeCreateSerializer,
-    RecipeListSerializer,
+    RecipeListSerializer, RecipeCartSerializer, RecipeShortSerializer,
 )
 
 
@@ -63,19 +65,6 @@ class RecipeGetLinkView(APIView):
 
         return Response({"short-link": full_url}, status=status.HTTP_200_OK)
 
-class RecipeRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Recipe.objects.all()
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
-
-    def get_serializer_class(self):
-        if self.request.method in ['PUT', 'PATCH']:
-            return RecipeCreateSerializer
-        return RecipeListSerializer
-
-    def perform_update(self, serializer):
-        # При необходимости проверка прав редактирования (автор/админ)
-        serializer.save()
-
 class RecipeDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Recipe.objects.all()
     permission_classes = [IsAuthorOrReadOnly]
@@ -93,6 +82,77 @@ class RecipeDetailView(generics.RetrieveUpdateDestroyAPIView):
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
 
-        # после обновления сериализуем уже для чтения
         read_serializer = RecipeListSerializer(instance, context={'request': request})
         return Response(read_serializer.data, status=status.HTTP_200_OK)
+
+class ShoppingCartAddView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        user = request.user
+        recipe = get_object_or_404(Recipe, pk=pk)
+
+        if ShoppingList.objects.filter(user=user, recipe=recipe).exists():
+            return Response(
+                {"detail": "Рецепт уже в корзине."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        ShoppingList.objects.create(user=user, recipe=recipe)
+
+        serializer = RecipeCartSerializer(recipe, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+class DownloadShoppingCartView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        shopping_items = ShoppingList.objects.filter(user=user)
+
+        if not shopping_items.exists():
+            return Response({"detail": "Корзина пуста."}, status=400)
+
+        # Собираем ингредиенты со всеми рецептами в корзине
+        ingredients = {}
+
+        for item in shopping_items:
+            recipe = item.recipe
+            recipe_ingredients = RecipeIngredient.objects.filter(recipe=recipe)
+            for ri in recipe_ingredients:
+                name = ri.component.name
+                unit = ri.component.measurement_unit
+                amount = ri.amount
+                if name in ingredients:
+                    ingredients[name]['amount'] += amount
+                else:
+                    ingredients[name] = {'amount': amount, 'unit': unit}
+
+        # Формируем текстовый файл со списком покупок
+        lines = []
+        for name, data in ingredients.items():
+            lines.append(f"{name} — {data['amount']} {data['unit']}")
+
+        content = "\n".join(lines)
+
+        response = HttpResponse(content, content_type='text/plain')
+        response['Content-Disposition'] = 'attachment; filename="shopping_cart.txt"'
+        return response
+
+class FavoriteAddView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        user = request.user
+        recipe = get_object_or_404(Recipe, pk=pk)
+
+        if Favorite.objects.filter(user=user, recipe=recipe).exists():
+            return Response(
+                {"detail": "Рецепт уже в избранном."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        Favorite.objects.create(user=user, recipe=recipe)
+
+        serializer = RecipeShortSerializer(recipe, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)

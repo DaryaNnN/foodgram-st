@@ -5,6 +5,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.files.base import ContentFile
 from rest_framework import serializers
 
+from recipes.models import Recipe
 from users.models import Subscription
 
 User = get_user_model()
@@ -113,12 +114,68 @@ class SetPasswordSerializer(serializers.Serializer):
         validate_password(value)
         return value
 
+class SubscriptionRecipeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Recipe
+        fields = ("id", "name", "image", "cooking_time")
+
+class SubscriptionAuthorSerializer(serializers.ModelSerializer):
+    is_subscribed = serializers.SerializerMethodField()
+    avatar = serializers.SerializerMethodField()
+    recipes = serializers.SerializerMethodField()
+    recipes_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = (
+            "id",
+            "username",
+            "first_name",
+            "last_name",
+            "email",
+            "is_subscribed",
+            "avatar",
+            "recipes",
+            "recipes_count",
+        )
+
+    def get_is_subscribed(self, obj):
+        request = self.context.get("request")
+        if not request or request.user.is_anonymous:
+            return False
+        return obj.subscribers.filter(subscriber=request.user).exists()
+
+    def get_avatar(self, obj):
+        if obj.avatar:
+            request = self.context.get('request')
+            avatar_url = obj.avatar.url
+            if request is not None:
+                return request.build_absolute_uri(avatar_url)
+            return avatar_url
+        return None
+
+    def get_recipes(self, obj):
+        request = self.context.get("request")
+        recipes_limit = None
+        if request:
+            try:
+                recipes_limit = self.context.get('recipes_limit')
+            except (TypeError, ValueError):
+                pass
+
+        recipes = Recipe.objects.filter(author=obj).order_by('-id')  # например, по убыванию id
+        if recipes_limit is not None:
+            recipes = recipes[:recipes_limit]
+
+        serializer = SubscriptionRecipeSerializer(recipes, many=True, context=self.context)
+        return serializer.data
+
+    def get_recipes_count(self, obj):
+        return Recipe.objects.filter(author=obj).count()
 
 class SubscriptionSerializer(serializers.ModelSerializer):
-    """Сериализатор для подписок"""
-
     subscriber = UserSerializer(read_only=True)
-    author = UserSerializer(read_only=True)
+    author = SubscriptionAuthorSerializer(read_only=True)
 
     class Meta:
         model = Subscription
