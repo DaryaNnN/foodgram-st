@@ -54,6 +54,23 @@ class RecipeListCreateView(generics.ListCreateAPIView):
         output_serializer = RecipeListSerializer(recipe, context={'request': request})
         return Response(output_serializer.data, status=status.HTTP_201_CREATED)
 
+    def get_queryset(self):
+        queryset = Recipe.objects.all()
+        user = self.request.user
+        params = self.request.query_params
+
+        if user.is_authenticated:
+            if params.get("is_favorited") in ["1", "true", "True"]:
+                queryset = queryset.filter(favorites__user=user)
+
+            if params.get("is_in_shopping_cart") in ["1", "true", "True"]:
+                queryset = queryset.filter(in_carts__user=user)
+
+        if "author" in params:
+            queryset = queryset.filter(author__id=params["author"])
+
+        return queryset
+
 class RecipeGetLinkView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -102,6 +119,20 @@ class ShoppingCartAddView(APIView):
 
         serializer = RecipeCartSerializer(recipe, context={'request': request})
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def delete(self, request, pk):
+        user = request.user
+        recipe = get_object_or_404(Recipe, pk=pk)
+
+        cart_item = ShoppingList.objects.filter(user=user, recipe=recipe).first()
+        if not cart_item:
+            return Response(
+                {"detail": "Рецепт не найден в корзине."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        cart_item.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 class DownloadShoppingCartView(APIView):
     permission_classes = [IsAuthenticated]
@@ -156,3 +187,17 @@ class FavoriteAddView(APIView):
 
         serializer = RecipeShortSerializer(recipe, context={'request': request})
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def delete(self, request, pk):
+        user = request.user
+        recipe = get_object_or_404(Recipe, pk=pk)
+
+        favorite = Favorite.objects.filter(user=user, recipe=recipe).first()
+        if not favorite:
+            return Response(
+                {"detail": "Рецепт не найден в избранном."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        favorite.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
