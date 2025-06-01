@@ -18,4 +18,4 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 CMD ["sh", "-c", \
      "python manage.py migrate && \
       python manage.py collectstatic --noinput && \
-      gunicorn fodgram.wsgi:application --bind 0.0.0.0:8000"]
+      gunicorn foodgram.wsgi:application --bind 0.0.0.0:8000"]

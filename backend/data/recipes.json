@@ -1,0 +1,50 @@
+[
+  {
+    "author_email": "1@example.com",
+    "name": "Грибной жюльен",
+    "text": "Ароматный жюльен с грибами и сливками, запечённый под сыром.",
+    "cooking_time": 25,
+    "image": "recipes/julienne.png",
+    "ingredients": [
+      {"name": "Шампиньоны", "measurement_unit": "г", "amount": 200},
+      {"name": "Сливки", "measurement_unit": "мл", "amount": 100},
+      {"name": "Сыр", "measurement_unit": "г", "amount": 50}
+    ]
+  },
+  {
+    "author_email": "2@example.com",
+    "name": "Пицца Маргарита",
+    "text": "Классическая пицца с томатами и моцареллой на тонком тесте.",
+    "cooking_time": 20,
+    "image": "recipes/pizza.png",
+    "ingredients": [
+      {"name": "Томат", "measurement_unit": "г", "amount": 150},
+      {"name": "Моцарелла", "measurement_unit": "г", "amount": 100},
+      {"name": "Базилик", "measurement_unit": "г", "amount": 10}
+    ]
+  },
+  {
+    "author_email": "3@example.com",
+    "name": "Овощной суп",
+    "text": "Лёгкий и полезный суп из свежих овощей.",
+    "cooking_time": 30,
+    "image": "recipes/soup.png",
+    "ingredients": [
+      {"name": "Картофель", "measurement_unit": "г", "amount": 200},
+      {"name": "Морковь", "measurement_unit": "г", "amount": 100},
+      {"name": "Лук", "measurement_unit": "г", "amount": 50}
+    ]
+  },
+  {
+    "author_email": "4@example.com",
+    "name": "Суши с лососем",
+    "text": "Простые суши из риса, нори и свежего лосося.",
+    "cooking_time": 35,
+    "image": "recipes/sushi.png",
+    "ingredients": [
+      {"name": "Рис", "measurement_unit": "г", "amount": 200},
+      {"name": "Лосось", "measurement_unit": "г", "amount": 100},
+      {"name": "Нори", "measurement_unit": "г", "amount": 5}
+    ]
+  }
+]
