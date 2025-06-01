@@ -28,17 +28,22 @@ def load_test_data(sender, **kwargs):
     # Загружаем пользователей
     users_data = load_json("users.json")
     for user_data in users_data:
-        user, created = User.objects.get_or_create(email=user_data["email"], defaults={
-            "username": user_data["username"],
-            "first_name": user_data["first_name"],
-            "last_name": user_data["last_name"],
-        })
+        user, created = User.objects.get_or_create(
+            email=user_data["email"],
+            defaults={
+                "username": user_data["username"],
+                "first_name": user_data["first_name"],
+                "last_name": user_data["last_name"],
+            },
+        )
         if created:
             user.set_password(user_data["password"])
             avatar_path = os.path.join(settings.MEDIA_ROOT, user_data["avatar"])
             if os.path.exists(avatar_path):
                 with open(avatar_path, "rb") as avatar_file:
-                    user.avatar.save(os.path.basename(avatar_path), File(avatar_file), save=False)
+                    user.avatar.save(
+                        os.path.basename(avatar_path), File(avatar_file), save=False
+                    )
             user.save()
             logger.info(f"Создан пользователь: {user.email} с аватаркой")
         else:
@@ -59,7 +64,9 @@ def load_test_data(sender, **kwargs):
         try:
             author = User.objects.get(email=recipe_data["author_email"])
         except User.DoesNotExist:
-            logger.error(f"Автор с email {recipe_data['author_email']} не найден, рецепт пропущен")
+            logger.error(
+                f"Автор с email {recipe_data['author_email']} не найден, рецепт пропущен"
+            )
             continue
 
         recipe, created = Recipe.objects.get_or_create(
@@ -75,7 +82,9 @@ def load_test_data(sender, **kwargs):
             image_path = os.path.join(settings.MEDIA_ROOT, recipe_data["image"])
             if os.path.exists(image_path):
                 with open(image_path, "rb") as image_file:
-                    recipe.image.save(os.path.basename(image_path), File(image_file), save=False)
+                    recipe.image.save(
+                        os.path.basename(image_path), File(image_file), save=False
+                    )
 
             recipe.save()
             logger.info(f"Добавлен рецепт: {recipe.name}")
@@ -89,7 +98,7 @@ def load_test_data(sender, **kwargs):
                 RecipeIngredient.objects.get_or_create(
                     recipe=recipe,
                     ingredient=ingredient,
-                    defaults={"amount": ingredient_data["amount"]}
+                    defaults={"amount": ingredient_data["amount"]},
                 )
         else:
             logger.info(f"Рецепт {recipe.name} уже существует")

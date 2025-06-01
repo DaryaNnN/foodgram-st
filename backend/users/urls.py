@@ -6,12 +6,11 @@ router = DefaultRouter()
 router.register("users", UserViewSet, basename="users")
 
 users_custom_patterns = [
-    path('subscriptions/', SubscriptionView.as_view(), name='subscriptions'),
-    path('<int:id>/subscribe/', subscribe, name='subscribe'),
+    path("subscriptions/", SubscriptionView.as_view(), name="subscriptions"),
+    path("<int:id>/subscribe/", subscribe, name="subscribe"),
 ]
 
 urlpatterns = [
     path("", include(router.urls)),
     path("users/", include(users_custom_patterns)),  # <--- Важно
 ]
-

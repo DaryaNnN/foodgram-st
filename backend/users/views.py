@@ -5,7 +5,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.pagination import PageNumberPagination
 
 from .serializers import (
-    UserShortSerializer, )
+    UserShortSerializer,
+)
 
 User = get_user_model()
 
@@ -54,7 +55,9 @@ class UserViewSet(viewsets.ModelViewSet):
         )
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
-    @action(detail=True, methods=["post", "delete"], permission_classes=[IsAuthenticated])
+    @action(
+        detail=True, methods=["post", "delete"], permission_classes=[IsAuthenticated]
+    )
     def subscribe(self, request, pk=None):
         author = get_object_or_404(User, pk=pk)
         user = request.user
@@ -138,14 +141,16 @@ class UserViewSet(viewsets.ModelViewSet):
         request.user.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+
 class SubscriptionPagination(PageNumberPagination):
     page_size = 6
-    page_size_query_param = 'limit'
+    page_size_query_param = "limit"
     max_page_size = 1000
 
 
 from users.serializers import SubscriptionAuthorSerializer
 from users.models import Subscription, User
+
 
 class SubscriptionView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
@@ -158,11 +163,11 @@ class SubscriptionView(generics.ListAPIView):
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        recipes_limit = self.request.query_params.get('recipes_limit')
+        recipes_limit = self.request.query_params.get("recipes_limit")
         if recipes_limit is not None and recipes_limit.isdigit():
-            context['recipes_limit'] = int(recipes_limit)
+            context["recipes_limit"] = int(recipes_limit)
         else:
-            context['recipes_limit'] = None
+            context["recipes_limit"] = None
         return context
 
 
@@ -179,16 +184,15 @@ def subscribe(request, id):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         subscription, created = Subscription.objects.get_or_create(
-            subscriber=user,
-            author=author
+            subscriber=user, author=author
         )
         if not created:
             return Response(
                 {"error": "Вы уже подписаны на этого пользователя."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-        recipes_limit = request.query_params.get('recipes_limit')
+        recipes_limit = request.query_params.get("recipes_limit")
         if recipes_limit and recipes_limit.isdigit():
             recipes_limit = int(recipes_limit)
         else:
@@ -201,13 +205,11 @@ def subscribe(request, id):
 
     elif request.method == "DELETE":
         subscription = Subscription.objects.filter(
-            subscriber=user,
-            author=author
+            subscriber=user, author=author
         ).first()
         if not subscription:
             return Response(
-                {"error": "Вы не подписаны."},
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": "Вы не подписаны."}, status=status.HTTP_400_BAD_REQUEST
             )
         subscription.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

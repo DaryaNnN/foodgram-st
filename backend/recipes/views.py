@@ -11,7 +11,9 @@ from recipes.models import Ingredient, Recipe, ShoppingList, RecipeIngredient, F
 from recipes.serializers import (
     IngredientSerializer,
     RecipeCreateSerializer,
-    RecipeListSerializer, RecipeCartSerializer, RecipeShortSerializer,
+    RecipeListSerializer,
+    RecipeCartSerializer,
+    RecipeShortSerializer,
 )
 
 
@@ -29,20 +31,22 @@ class IngredientDetailView(generics.RetrieveAPIView):
     serializer_class = IngredientSerializer
     permission_classes = [permissions.AllowAny]
 
+
 class IsAuthorOrReadOnly(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         if request.method in permissions.SAFE_METHODS:
             return True
         return obj.author == request.user
 
+
 class RecipeListCreateView(generics.ListCreateAPIView):
     queryset = Recipe.objects.all()
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     filter_backends = [DjangoFilterBackend]  # добавляем фильтр
-    filterset_fields = ['author']  # фильтрация по полю author (id пользователя)
+    filterset_fields = ["author"]  # фильтрация по полю author (id пользователя)
 
     def get_serializer_class(self):
-        if self.request.method == 'POST':
+        if self.request.method == "POST":
             return RecipeCreateSerializer
         return RecipeListSerializer
 
@@ -51,7 +55,7 @@ class RecipeListCreateView(generics.ListCreateAPIView):
         serializer.is_valid(raise_exception=True)
         recipe = serializer.save()
 
-        output_serializer = RecipeListSerializer(recipe, context={'request': request})
+        output_serializer = RecipeListSerializer(recipe, context={"request": request})
         return Response(output_serializer.data, status=status.HTTP_201_CREATED)
 
     def get_queryset(self):
@@ -71,6 +75,7 @@ class RecipeListCreateView(generics.ListCreateAPIView):
 
         return queryset
 
+
 class RecipeGetLinkView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -78,16 +83,17 @@ class RecipeGetLinkView(APIView):
         recipe = get_object_or_404(Recipe, id=id)
 
         # Получаем полный URL текущего рецепта
-        full_url = request.build_absolute_uri(f'/api/recipes/{recipe.id}/')
+        full_url = request.build_absolute_uri(f"/api/recipes/{recipe.id}/")
 
         return Response({"short-link": full_url}, status=status.HTTP_200_OK)
+
 
 class RecipeDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Recipe.objects.all()
     permission_classes = [IsAuthorOrReadOnly]
 
     def get_serializer_class(self):
-        if self.request.method in ('PUT', 'PATCH'):
+        if self.request.method in ("PUT", "PATCH"):
             return RecipeCreateSerializer
         return RecipeListSerializer
 
@@ -99,8 +105,9 @@ class RecipeDetailView(generics.RetrieveUpdateDestroyAPIView):
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
 
-        read_serializer = RecipeListSerializer(instance, context={'request': request})
+        read_serializer = RecipeListSerializer(instance, context={"request": request})
         return Response(read_serializer.data, status=status.HTTP_200_OK)
+
 
 class ShoppingCartAddView(APIView):
     permission_classes = [IsAuthenticated]
@@ -111,13 +118,12 @@ class ShoppingCartAddView(APIView):
 
         if ShoppingList.objects.filter(user=user, recipe=recipe).exists():
             return Response(
-                {"detail": "Рецепт уже в корзине."},
-                status=status.HTTP_400_BAD_REQUEST
+                {"detail": "Рецепт уже в корзине."}, status=status.HTTP_400_BAD_REQUEST
             )
 
         ShoppingList.objects.create(user=user, recipe=recipe)
 
-        serializer = RecipeCartSerializer(recipe, context={'request': request})
+        serializer = RecipeCartSerializer(recipe, context={"request": request})
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def delete(self, request, pk):
@@ -128,11 +134,12 @@ class ShoppingCartAddView(APIView):
         if not cart_item:
             return Response(
                 {"detail": "Рецепт не найден в корзине."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         cart_item.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 class DownloadShoppingCartView(APIView):
     permission_classes = [IsAuthenticated]
@@ -155,9 +162,9 @@ class DownloadShoppingCartView(APIView):
                 unit = ri.component.measurement_unit
                 amount = ri.amount
                 if name in ingredients:
-                    ingredients[name]['amount'] += amount
+                    ingredients[name]["amount"] += amount
                 else:
-                    ingredients[name] = {'amount': amount, 'unit': unit}
+                    ingredients[name] = {"amount": amount, "unit": unit}
 
         # Формируем текстовый файл со списком покупок
         lines = []
@@ -166,9 +173,10 @@ class DownloadShoppingCartView(APIView):
 
         content = "\n".join(lines)
 
-        response = HttpResponse(content, content_type='text/plain')
-        response['Content-Disposition'] = 'attachment; filename="shopping_cart.txt"'
+        response = HttpResponse(content, content_type="text/plain")
+        response["Content-Disposition"] = 'attachment; filename="shopping_cart.txt"'
         return response
+
 
 class FavoriteAddView(APIView):
     permission_classes = [IsAuthenticated]
@@ -180,12 +188,12 @@ class FavoriteAddView(APIView):
         if Favorite.objects.filter(user=user, recipe=recipe).exists():
             return Response(
                 {"detail": "Рецепт уже в избранном."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         Favorite.objects.create(user=user, recipe=recipe)
 
-        serializer = RecipeShortSerializer(recipe, context={'request': request})
+        serializer = RecipeShortSerializer(recipe, context={"request": request})
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def delete(self, request, pk):
@@ -196,7 +204,7 @@ class FavoriteAddView(APIView):
         if not favorite:
             return Response(
                 {"detail": "Рецепт не найден в избранном."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         favorite.delete()
