@@ -158,7 +158,6 @@ class SubscriptionView(generics.ListAPIView):
     pagination_class = SubscriptionPagination
 
     def get_queryset(self):
-        # Получаем всех авторов, на которых подписан текущий пользователь
         return User.objects.filter(subscribers__subscriber=self.request.user)
 
     def get_serializer_context(self):

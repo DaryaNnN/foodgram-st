@@ -1,4 +1,11 @@
 from rest_framework import serializers, generics, permissions
+
+from foodgram.constants import (
+    MIN_INGREDIENT_AMOUNT,
+    MAX_INGREDIENT_AMOUNT,
+    MAX_COOKING_TIME,
+    MIN_COOKING_TIME,
+)
 from users.serializers import Base64ImageField, UserSerializer
 from .models import Recipe, Ingredient, RecipeIngredient
 
@@ -19,6 +26,13 @@ class RecipeIngredientWriteSerializer(serializers.ModelSerializer):
         model = RecipeIngredient
         fields = ("id", "amount")
 
+    def validate_amount(self, value):
+        if not (MIN_INGREDIENT_AMOUNT <= value <= MAX_INGREDIENT_AMOUNT):
+            raise serializers.ValidationError(
+                f"Количество ингредиента должно быть от {MIN_INGREDIENT_AMOUNT} до {MAX_INGREDIENT_AMOUNT}."
+            )
+        return value
+
 
 class RecipeIngredientReadSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(source="component.id")
@@ -34,63 +48,67 @@ class RecipeIngredientReadSerializer(serializers.ModelSerializer):
 class RecipeCreateSerializer(serializers.ModelSerializer):
     ingredients = RecipeIngredientWriteSerializer(many=True, write_only=True)
     image = Base64ImageField()
+    cooking_time = serializers.IntegerField(
+        min_value=MIN_COOKING_TIME, max_value=MAX_COOKING_TIME
+    )
 
     class Meta:
         model = Recipe
         fields = ("id", "name", "text", "cooking_time", "image", "ingredients")
-
-    def update(self, instance, validated_data):
-        ingredients_data = validated_data.pop("ingredients", None)
-
-        # Обновляем простые поля
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
-
-        # Обновляем ингредиенты, если передали
-        if ingredients_data is not None:
-            # Удаляем старые
-            instance.recipe_ingredients.all().delete()
-            # Создаем новые
-            for ingredient_data in ingredients_data:
-                RecipeIngredient.objects.create(
-                    recipe=instance,
-                    component=ingredient_data["component"],
-                    amount=ingredient_data["amount"],
-                )
-        return instance
 
     def validate_ingredients(self, value):
         if not value:
             raise serializers.ValidationError("Нужно указать хотя бы один ингредиент.")
         ingredient_ids = []
         for ingredient in value:
-            ingredient_obj = (
-                ingredient["component"]
-                if isinstance(ingredient["component"], Ingredient)
-                else ingredient["component"]
-            )
-            if ingredient_obj in ingredient_ids:
+            component = ingredient.get("component")
+            if component in ingredient_ids:
                 raise serializers.ValidationError("Ингредиенты не должны повторяться.")
-            ingredient_ids.append(ingredient_obj)
-            if ingredient["amount"] <= 0:
+            ingredient_ids.append(component)
+
+            amount = ingredient.get("amount")
+            if not (MIN_INGREDIENT_AMOUNT <= amount <= MAX_INGREDIENT_AMOUNT):
                 raise serializers.ValidationError(
-                    "Количество ингредиента должно быть положительным."
+                    f"Количество ингредиента должно быть от {MIN_INGREDIENT_AMOUNT} до {MAX_INGREDIENT_AMOUNT}."
                 )
         return value
 
     def create(self, validated_data):
         ingredients_data = validated_data.pop("ingredients")
-        recipe = Recipe.objects.create(
-            author=self.context["request"].user, **validated_data
-        )
-        for ingredient_data in ingredients_data:
-            RecipeIngredient.objects.create(
+        user = self.context["request"].user
+        recipe = Recipe.objects.create(author=user, **validated_data)
+
+        recipe_ingredients = [
+            RecipeIngredient(
                 recipe=recipe,
-                component=ingredient_data["component"],
-                amount=ingredient_data["amount"],
+                component=ingredient["component"],
+                amount=ingredient["amount"],
             )
+            for ingredient in ingredients_data
+        ]
+        RecipeIngredient.objects.bulk_create(recipe_ingredients)
         return recipe
+
+    def update(self, instance, validated_data):
+        ingredients_data = validated_data.pop("ingredients", None)
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        if ingredients_data is not None:
+            instance.recipe_ingredients.all().delete()
+            recipe_ingredients = [
+                RecipeIngredient(
+                    recipe=instance,
+                    component=ingredient["component"],
+                    amount=ingredient["amount"],
+                )
+                for ingredient in ingredients_data
+            ]
+            RecipeIngredient.objects.bulk_create(recipe_ingredients)
+
+        return instance
 
     def validate(self, data):
         if self.instance and not self.partial and "ingredients" not in data:
@@ -163,7 +181,7 @@ class RecipeCartSerializer(serializers.ModelSerializer):
 
 
 class RecipeShortSerializer(serializers.ModelSerializer):
-    image = serializers.ImageField()  # Если в вашем Recipe поле image — ImageField
+    image = serializers.ImageField()
 
     class Meta:
         model = Recipe

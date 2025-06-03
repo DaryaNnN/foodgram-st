@@ -18,9 +18,9 @@
     "cooking_time": 20,
     "image": "recipes/pizza.png",
     "ingredients": [
-      {"name": "томат", "measurement_unit": "г", "amount": 150},
+      {"name": "помидоры", "measurement_unit": "г", "amount": 150},
       {"name": "моцарелла", "measurement_unit": "г", "amount": 100},
-      {"name": "базилик", "measurement_unit": "г", "amount": 10}
+      {"name": "базилик свежий", "measurement_unit": "г", "amount": 10}
     ]
   },
   {
@@ -32,7 +32,7 @@
     "ingredients": [
       {"name": "картофель", "measurement_unit": "г", "amount": 200},
       {"name": "морковь", "measurement_unit": "г", "amount": 100},
-      {"name": "лук", "measurement_unit": "г", "amount": 50}
+      {"name": "лук зеленый", "measurement_unit": "г", "amount": 50}
     ]
   },
   {

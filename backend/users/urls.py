@@ -12,5 +12,5 @@ users_custom_patterns = [
 
 urlpatterns = [
     path("", include(router.urls)),
-    path("users/", include(users_custom_patterns)),  # <--- Важно
+    path("users/", include(users_custom_patterns)),
 ]
