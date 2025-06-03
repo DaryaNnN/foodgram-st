@@ -24,11 +24,13 @@ services:
     depends_on:
       - db
     command: >
-      sh -c "python manage.py migrate --noinput &&
+      sh -c "until nc -z db 5432; do echo 'Ожидаем базу данных...'; sleep 2; done &&
+             python manage.py migrate --noinput &&
              python manage.py collectstatic --noinput &&
              gunicorn foodgram.wsgi:application --bind 0.0.0.0:8000"
     ports:
       - "8000:8000"
+
 
   frontend:
     container_name: foodgram-front
