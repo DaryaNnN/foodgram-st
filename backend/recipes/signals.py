@@ -25,45 +25,39 @@ def load_json(filename):
 
 @receiver(post_migrate)
 def load_test_data(sender, **kwargs):
-    # Загружаем пользователей
-    users_data = load_json("users.json")
-    for user_data in users_data:
-        user, created = User.objects.get_or_create(
-            email=user_data["email"],
-            defaults={
-                "username": user_data["username"],
-                "first_name": user_data["first_name"],
-                "last_name": user_data["last_name"],
-            },
-        )
-        if created:
-            user.set_password(user_data["password"])
-            avatar_path = os.path.join(settings.MEDIA_ROOT, user_data["avatar"])
-            if os.path.exists(avatar_path):
-                with open(avatar_path, "rb") as avatar_file:
-                    user.avatar.save(
-                        os.path.basename(avatar_path), File(avatar_file), save=False
-                    )
-            user.save()
-            logger.info(f"Создан пользователь: {user.email} с аватаркой")
-        else:
-            logger.info(f"Пользователь {user.email} уже существует")
-
-    # Загружаем ингредиенты (уже есть у тебя, можно оставить)
     ingredients_data = load_json("ingredients.json")
-    for item in ingredients_data:
-        obj, created = Ingredient.objects.get_or_create(
-            name=item["name"], measurement_unit=item["measurement_unit"]
-        )
-        if created:
-            logger.info(f"Добавлен ингредиент: {obj}")
+    if ingredients_data:
+        existing_ingredients = {
+            (i.name.lower(), i.measurement_unit.lower())
+            for i in Ingredient.objects.all()
+        }
+        new_ingredients = []
+        for item in ingredients_data:
+            key = (item["name"].lower(), item["measurement_unit"].lower())
+            if key not in existing_ingredients:
+                new_ingredients.append(
+                    Ingredient(
+                        name=item["name"], measurement_unit=item["measurement_unit"]
+                    )
+                )
+        Ingredient.objects.bulk_create(new_ingredients)
+        logger.info(f"Добавлено ингредиентов: {len(new_ingredients)}")
 
-    # Загружаем рецепты
     recipes_data = load_json("recipes.json")
+    if not recipes_data:
+        return
+
+    author_emails = {r["author_email"] for r in recipes_data}
+    authors = {u.email: u for u in User.objects.filter(email__in=author_emails)}
+
+    all_ingredients = Ingredient.objects.all()
+    ingredient_lookup = {
+        (i.name.lower(), i.measurement_unit.lower()): i for i in all_ingredients
+    }
+
     for recipe_data in recipes_data:
-        try:
-            author = User.objects.get(email=recipe_data["author_email"])
-        except User.DoesNotExist:
+        author = authors.get(recipe_data["author_email"])
+        if not author:
             logger.error(
                 f"Автор с email {recipe_data['author_email']} не найден, рецепт пропущен"
             )
@@ -79,7 +73,6 @@ def load_test_data(sender, **kwargs):
         )
 
         if created:
-            # Загружаем изображение рецепта
             image_path = os.path.join(settings.MEDIA_ROOT, recipe_data["image"])
             if os.path.exists(image_path):
                 with open(image_path, "rb") as image_file:
@@ -89,16 +82,27 @@ def load_test_data(sender, **kwargs):
             recipe.save()
             logger.info(f"Добавлен рецепт: {recipe.name}")
 
-            # Добавляем ингредиенты к рецепту с количеством
+            new_links = []
             for ingredient_data in recipe_data["ingredients"]:
-                ingredient, _ = Ingredient.objects.get_or_create(
-                    name=ingredient_data["name"],
-                    measurement_unit=ingredient_data["measurement_unit"],
+                key = (
+                    ingredient_data["name"].lower(),
+                    ingredient_data["measurement_unit"].lower(),
                 )
-                RecipeIngredient.objects.get_or_create(
-                    recipe=recipe,
-                    component=ingredient,
-                    defaults={"amount": ingredient_data["amount"]},
+                ingredient = ingredient_lookup.get(key)
+                if not ingredient:
+                    logger.warning(
+                        f"Ингредиент {key} не найден для рецепта {recipe.name}"
+                    )
+                    continue
+
+                new_links.append(
+                    RecipeIngredient(
+                        recipe=recipe,
+                        component=ingredient,
+                        amount=ingredient_data["amount"],
+                    )
                 )
+
+            RecipeIngredient.objects.bulk_create(new_links)
         else:
             logger.info(f"Рецепт {recipe.name} уже существует")

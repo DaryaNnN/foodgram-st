@@ -34,7 +34,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         password = validated_data.pop("password")
         user = User(**validated_data)
-        user.set_password(password)  # Хэшируем пароль
+        user.set_password(password)
         user.save()
         return user
 
@@ -165,9 +165,7 @@ class SubscriptionAuthorSerializer(serializers.ModelSerializer):
             except (TypeError, ValueError):
                 pass
 
-        recipes = Recipe.objects.filter(author=obj).order_by(
-            "-id"
-        )  # например, по убыванию id
+        recipes = Recipe.objects.filter(author=obj).order_by("-id")
         if recipes_limit is not None:
             recipes = recipes[:recipes_limit]
 

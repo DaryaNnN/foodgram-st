@@ -42,8 +42,8 @@ class IsAuthorOrReadOnly(permissions.BasePermission):
 class RecipeListCreateView(generics.ListCreateAPIView):
     queryset = Recipe.objects.all()
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
-    filter_backends = [DjangoFilterBackend]  # добавляем фильтр
-    filterset_fields = ["author"]  # фильтрация по полю author (id пользователя)
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ["author"]
 
     def get_serializer_class(self):
         if self.request.method == "POST":
@@ -82,7 +82,6 @@ class RecipeGetLinkView(APIView):
     def get(self, request, id):
         recipe = get_object_or_404(Recipe, id=id)
 
-        # Получаем полный URL текущего рецепта
         full_url = request.build_absolute_uri(f"/api/recipes/{recipe.id}/")
 
         return Response({"short-link": full_url}, status=status.HTTP_200_OK)
@@ -151,7 +150,6 @@ class DownloadShoppingCartView(APIView):
         if not shopping_items.exists():
             return Response({"detail": "Корзина пуста."}, status=400)
 
-        # Собираем ингредиенты со всеми рецептами в корзине
         ingredients = {}
 
         for item in shopping_items:
@@ -166,7 +164,6 @@ class DownloadShoppingCartView(APIView):
                 else:
                     ingredients[name] = {"amount": amount, "unit": unit}
 
-        # Формируем текстовый файл со списком покупок
         lines = []
         for name, data in ingredients.items():
             lines.append(f"{name} — {data['amount']} {data['unit']}")
