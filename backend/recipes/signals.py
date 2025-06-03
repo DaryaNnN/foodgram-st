@@ -77,6 +77,7 @@ def load_test_data(sender, **kwargs):
                 "cooking_time": recipe_data["cooking_time"],
             },
         )
+
         if created:
             # Загружаем изображение рецепта
             image_path = os.path.join(settings.MEDIA_ROOT, recipe_data["image"])
@@ -85,7 +86,6 @@ def load_test_data(sender, **kwargs):
                     recipe.image.save(
                         os.path.basename(image_path), File(image_file), save=False
                     )
-
             recipe.save()
             logger.info(f"Добавлен рецепт: {recipe.name}")
 
@@ -97,7 +97,7 @@ def load_test_data(sender, **kwargs):
                 )
                 RecipeIngredient.objects.get_or_create(
                     recipe=recipe,
-                    ingredient=ingredient,
+                    component=ingredient,
                     defaults={"amount": ingredient_data["amount"]},
                 )
         else:

@@ -2,29 +2,29 @@ services:
 
   db:
     image: postgres:15
-    container_name: foodgram-db
-    restart: always
+    container_name: db
     env_file:
       - ../.env
     volumes:
       - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
 
   backend:
     container_name: foodgram-back
     build:
       context: ../backend
+      dockerfile: Dockerfile
     volumes:
       - ../backend/:/app/
       - static:/app/static/
       - media:/app/media/
     env_file:
       - ../.env
+    environment:
+      - USE_SQLITE=False
     depends_on:
       - db
     command: >
-      sh -c "python manage.py migrate &&
+      sh -c "python manage.py migrate --noinput &&
              python manage.py collectstatic --noinput &&
              gunicorn foodgram.wsgi:application --bind 0.0.0.0:8000"
     ports:
@@ -35,7 +35,7 @@ services:
     build: ../frontend
     volumes:
       - ../frontend/:/app/result_build/
-      -
+
   nginx:
     container_name: foodgram-proxy
     image: nginx:1.25.4-alpine

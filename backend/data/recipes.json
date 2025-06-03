@@ -6,9 +6,9 @@
     "cooking_time": 25,
     "image": "recipes/julienne.png",
     "ingredients": [
-      {"name": "Шампиньоны", "measurement_unit": "г", "amount": 200},
-      {"name": "Сливки", "measurement_unit": "мл", "amount": 100},
-      {"name": "Сыр", "measurement_unit": "г", "amount": 50}
+      {"name": "шампиньоны", "measurement_unit": "г", "amount": 200},
+      {"name": "сливки", "measurement_unit": "мл", "amount": 100},
+      {"name": "сыр", "measurement_unit": "г", "amount": 50}
     ]
   },
   {
@@ -18,9 +18,9 @@
     "cooking_time": 20,
     "image": "recipes/pizza.png",
     "ingredients": [
-      {"name": "Томат", "measurement_unit": "г", "amount": 150},
-      {"name": "Моцарелла", "measurement_unit": "г", "amount": 100},
-      {"name": "Базилик", "measurement_unit": "г", "amount": 10}
+      {"name": "томат", "measurement_unit": "г", "amount": 150},
+      {"name": "моцарелла", "measurement_unit": "г", "amount": 100},
+      {"name": "базилик", "measurement_unit": "г", "amount": 10}
     ]
   },
   {
@@ -30,9 +30,9 @@
     "cooking_time": 30,
     "image": "recipes/soup.png",
     "ingredients": [
-      {"name": "Картофель", "measurement_unit": "г", "amount": 200},
-      {"name": "Морковь", "measurement_unit": "г", "amount": 100},
-      {"name": "Лук", "measurement_unit": "г", "amount": 50}
+      {"name": "картофель", "measurement_unit": "г", "amount": 200},
+      {"name": "морковь", "measurement_unit": "г", "amount": 100},
+      {"name": "лук", "measurement_unit": "г", "amount": 50}
     ]
   },
   {
@@ -42,9 +42,9 @@
     "cooking_time": 35,
     "image": "recipes/sushi.png",
     "ingredients": [
-      {"name": "Рис", "measurement_unit": "г", "amount": 200},
-      {"name": "Лосось", "measurement_unit": "г", "amount": 100},
-      {"name": "Нори", "measurement_unit": "г", "amount": 5}
+      {"name": "рис", "measurement_unit": "г", "amount": 200},
+      {"name": "лосось", "measurement_unit": "г", "amount": 100},
+      {"name": "нори", "measurement_unit": "г", "amount": 5}
     ]
   }
 ]
