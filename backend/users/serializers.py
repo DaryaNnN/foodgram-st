@@ -187,6 +187,21 @@ class SubscriptionSerializer(serializers.ModelSerializer):
         fields = ("id", "subscriber", "author")
 
 
+class SubscriptionCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Subscription
+        fields = ("subscriber", "author")
+
+    def validate(self, data):
+        subscriber = data.get("subscriber")
+        author = data.get("author")
+        if subscriber == author:
+            raise serializers.ValidationError("Нельзя подписаться на самого себя.")
+        if Subscription.objects.filter(subscriber=subscriber, author=author).exists():
+            raise serializers.ValidationError("Вы уже подписаны на этого пользователя.")
+        return data
+
+
 class UserShortSerializer(serializers.ModelSerializer):
     class Meta:
         model = User

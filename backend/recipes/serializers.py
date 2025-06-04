@@ -20,18 +20,13 @@ class RecipeIngredientWriteSerializer(serializers.ModelSerializer):
     id = serializers.PrimaryKeyRelatedField(
         queryset=Ingredient.objects.all(), source="component"
     )
-    amount = serializers.IntegerField()
+    amount = serializers.IntegerField(
+        min_value=MIN_INGREDIENT_AMOUNT, max_value=MAX_INGREDIENT_AMOUNT
+    )
 
     class Meta:
         model = RecipeIngredient
         fields = ("id", "amount")
-
-    def validate_amount(self, value):
-        if not (MIN_INGREDIENT_AMOUNT <= value <= MAX_INGREDIENT_AMOUNT):
-            raise serializers.ValidationError(
-                f"Количество ингредиента должно быть от {MIN_INGREDIENT_AMOUNT} до {MAX_INGREDIENT_AMOUNT}."
-            )
-        return value
 
 
 class RecipeIngredientReadSerializer(serializers.ModelSerializer):
@@ -43,6 +38,19 @@ class RecipeIngredientReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = RecipeIngredient
         fields = ("id", "name", "measurement_unit", "amount")
+
+
+def create_recipe_ingredients(recipe, ingredients_data):
+    RecipeIngredient.objects.bulk_create(
+        [
+            RecipeIngredient(
+                recipe=recipe,
+                component=ingredient["component"],
+                amount=ingredient["amount"],
+            )
+            for ingredient in ingredients_data
+        ]
+    )
 
 
 class RecipeCreateSerializer(serializers.ModelSerializer):
@@ -59,34 +67,20 @@ class RecipeCreateSerializer(serializers.ModelSerializer):
     def validate_ingredients(self, value):
         if not value:
             raise serializers.ValidationError("Нужно указать хотя бы один ингредиент.")
-        ingredient_ids = []
+
+        ingredient_ids = set()
         for ingredient in value:
-            component = ingredient.get("component")
+            component = ingredient["component"]
             if component in ingredient_ids:
                 raise serializers.ValidationError("Ингредиенты не должны повторяться.")
-            ingredient_ids.append(component)
-
-            amount = ingredient.get("amount")
-            if not (MIN_INGREDIENT_AMOUNT <= amount <= MAX_INGREDIENT_AMOUNT):
-                raise serializers.ValidationError(
-                    f"Количество ингредиента должно быть от {MIN_INGREDIENT_AMOUNT} до {MAX_INGREDIENT_AMOUNT}."
-                )
+            ingredient_ids.add(component)
         return value
 
     def create(self, validated_data):
         ingredients_data = validated_data.pop("ingredients")
         user = self.context["request"].user
         recipe = Recipe.objects.create(author=user, **validated_data)
-
-        recipe_ingredients = [
-            RecipeIngredient(
-                recipe=recipe,
-                component=ingredient["component"],
-                amount=ingredient["amount"],
-            )
-            for ingredient in ingredients_data
-        ]
-        RecipeIngredient.objects.bulk_create(recipe_ingredients)
+        create_recipe_ingredients(recipe, ingredients_data)
         return recipe
 
     def update(self, instance, validated_data):
@@ -98,15 +92,7 @@ class RecipeCreateSerializer(serializers.ModelSerializer):
 
         if ingredients_data is not None:
             instance.recipe_ingredients.all().delete()
-            recipe_ingredients = [
-                RecipeIngredient(
-                    recipe=instance,
-                    component=ingredient["component"],
-                    amount=ingredient["amount"],
-                )
-                for ingredient in ingredients_data
-            ]
-            RecipeIngredient.objects.bulk_create(recipe_ingredients)
+            create_recipe_ingredients(instance, ingredients_data)
 
         return instance
 
@@ -144,13 +130,13 @@ class RecipeListSerializer(serializers.ModelSerializer):
         ]
 
     def get_is_favorited(self, obj):
-        user = self.context.get("request").user
+        user = self.context["request"].user
         if user.is_anonymous:
             return False
         return obj.favorites.filter(user=user).exists()
 
     def get_is_in_shopping_cart(self, obj):
-        user = self.context.get("request").user
+        user = self.context["request"].user
         if user.is_anonymous:
             return False
         return obj.in_carts.filter(user=user).exists()

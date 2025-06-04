@@ -23,30 +23,22 @@ def load_json(filename):
         return json.load(f)
 
 
-@receiver(post_migrate)
-def load_test_data(sender, **kwargs):
-    ingredients_data = load_json("ingredients.json")
-    if ingredients_data:
-        existing_ingredients = {
-            (i.name.lower(), i.measurement_unit.lower())
-            for i in Ingredient.objects.all()
-        }
-        new_ingredients = []
-        for item in ingredients_data:
-            key = (item["name"].lower(), item["measurement_unit"].lower())
-            if key not in existing_ingredients:
-                new_ingredients.append(
-                    Ingredient(
-                        name=item["name"], measurement_unit=item["measurement_unit"]
-                    )
-                )
-        Ingredient.objects.bulk_create(new_ingredients)
-        logger.info(f"Добавлено ингредиентов: {len(new_ingredients)}")
+def create_ingredients(ingredients_data):
+    existing_ingredients = {
+        (i.name.lower(), i.measurement_unit.lower()) for i in Ingredient.objects.all()
+    }
+    new_ingredients = []
+    for item in ingredients_data:
+        key = (item["name"].lower(), item["measurement_unit"].lower())
+        if key not in existing_ingredients:
+            new_ingredients.append(
+                Ingredient(name=item["name"], measurement_unit=item["measurement_unit"])
+            )
+    Ingredient.objects.bulk_create(new_ingredients)
+    logger.info(f"Добавлено ингредиентов: {len(new_ingredients)}")
 
-    recipes_data = load_json("recipes.json")
-    if not recipes_data:
-        return
 
+def create_recipes(recipes_data):
     author_emails = {r["author_email"] for r in recipes_data}
     authors = {u.email: u for u in User.objects.filter(email__in=author_emails)}
 
@@ -106,3 +98,14 @@ def load_test_data(sender, **kwargs):
             RecipeIngredient.objects.bulk_create(new_links)
         else:
             logger.info(f"Рецепт {recipe.name} уже существует")
+
+
+@receiver(post_migrate)
+def load_test_data(sender, **kwargs):
+    ingredients_data = load_json("ingredients.json")
+    if ingredients_data:
+        create_ingredients(ingredients_data)
+
+    recipes_data = load_json("recipes.json")
+    if recipes_data:
+        create_recipes(recipes_data)

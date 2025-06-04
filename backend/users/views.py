@@ -1,28 +1,44 @@
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
-from rest_framework import generics
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.pagination import PageNumberPagination
-
-from .serializers import (
-    UserShortSerializer,
-)
-
-User = get_user_model()
-
-from rest_framework import viewsets, status, permissions
-from rest_framework.decorators import action
+from rest_framework import viewsets, status, permissions, generics
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
+from rest_framework import serializers
 
-from users.models import User
+from users.models import Subscription, User
 from users.serializers import (
     UserSerializer,
     UserCreateSerializer,
     UserDetailSerializer,
     AvatarSerializer,
     SetPasswordSerializer,
+    SubscriptionAuthorSerializer, UserShortSerializer,
 )
+
+User = get_user_model()
+
+
+class SubscriptionCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Subscription
+        fields = ("subscriber", "author")
+
+    def validate(self, data):
+        if data["subscriber"] == data["author"]:
+            raise serializers.ValidationError("Нельзя подписаться на самого себя.")
+        if Subscription.objects.filter(
+            subscriber=data["subscriber"], author=data["author"]
+        ).exists():
+            raise serializers.ValidationError("Вы уже подписаны на этого пользователя.")
+        return data
+
+
+class SubscriptionPagination(PageNumberPagination):
+    page_size = 6
+    page_size_query_param = "limit"
+    max_page_size = 1000
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -63,31 +79,28 @@ class UserViewSet(viewsets.ModelViewSet):
         user = request.user
 
         if request.method == "POST":
-            if user == author:
-                return Response(
-                    {"errors": "Нельзя подписаться на самого себя."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            if Subscription.objects.filter(subscriber=user, author=author).exists():
-                return Response(
-                    {"error": "Вы уже подписаны на этого пользователя."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            Subscription.objects.create(subscriber=user, author=author)
-            serializer = SubscriptionAuthorSerializer(
+            serializer = SubscriptionCreateSerializer(
+                data={"subscriber": user.id, "author": author.id}
+            )
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+
+            serializer_response = SubscriptionAuthorSerializer(
                 author, context=self.get_serializer_context()
             )
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer_response.data, status=status.HTTP_201_CREATED)
 
-        if request.method == "DELETE":
-            subscription = Subscription.objects.filter(subscriber=user, author=author)
-            if subscription.exists():
-                subscription.delete()
-                return Response(status=status.HTTP_204_NO_CONTENT)
-            return Response(
-                {"error": "Вы не подписаны на этого пользователя."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        elif request.method == "DELETE":
+            subscription = Subscription.objects.filter(
+                subscriber=user, author=author
+            ).first()
+            if not subscription:
+                return Response(
+                    {"error": "Вы не подписаны на этого пользователя."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            subscription.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=False, methods=["get"], permission_classes=[IsAuthenticated])
     def subscriptions(self, request):
@@ -142,16 +155,6 @@ class UserViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class SubscriptionPagination(PageNumberPagination):
-    page_size = 6
-    page_size_query_param = "limit"
-    max_page_size = 1000
-
-
-from users.serializers import SubscriptionAuthorSerializer
-from users.models import Subscription, User
-
-
 class SubscriptionView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = SubscriptionAuthorSerializer
@@ -177,30 +180,20 @@ def subscribe(request, id):
     user = request.user
 
     if request.method == "POST":
-        if author == user:
-            return Response(
-                {"error": "Нельзя подписаться на самого себя."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        subscription, created = Subscription.objects.get_or_create(
-            subscriber=user, author=author
+        serializer = SubscriptionCreateSerializer(
+            data={"subscriber": user.id, "author": author.id}
         )
-        if not created:
-            return Response(
-                {"error": "Вы уже подписаны на этого пользователя."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
 
-        recipes_limit = request.query_params.get("recipes_limit")
-        if recipes_limit and recipes_limit.isdigit():
-            recipes_limit = int(recipes_limit)
-        else:
-            recipes_limit = None
-
-        serializer = SubscriptionAuthorSerializer(
-            author, context={"request": request, "recipes_limit": recipes_limit}
+        serializer_response = SubscriptionAuthorSerializer(
+            author,
+            context={
+                "request": request,
+                "recipes_limit": request.query_params.get("recipes_limit"),
+            },
         )
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer_response.data, status=status.HTTP_201_CREATED)
 
     elif request.method == "DELETE":
         subscription = Subscription.objects.filter(
@@ -208,7 +201,8 @@ def subscribe(request, id):
         ).first()
         if not subscription:
             return Response(
-                {"error": "Вы не подписаны."}, status=status.HTTP_400_BAD_REQUEST
+                {"error": "Вы не подписаны на этого пользователя."},
+                status=status.HTTP_400_BAD_REQUEST,
             )
         subscription.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
